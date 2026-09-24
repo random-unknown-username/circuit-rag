@@ -1,0 +1,1 @@
+// Placeholder: Embedding provider boundary.
