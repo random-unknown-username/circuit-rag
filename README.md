@@ -66,6 +66,8 @@ The research path goes directly from Python/PyTorch to C++/CUDA. Production uses
 
 ## Where to start
 
+The consolidated [design and teaching reference](docs/design-reference.md) records the product, engine math, research gates, and agreed learning workflow.
+
 Read the [planned CLI](docs/cli.md), [architecture](docs/architecture.md), and [adapter boundaries](docs/extending.md). The [research plan](docs/research.md) explains the engine's acceptance gates. The [file map](docs/file-map.md) lists every scaffold file.
 
 We're leaving room to learn from open-source harnesses without copying their entire architecture. Record inspirations, keep attribution, and adapt them at a defined boundary. See [third-party policy](docs/third-party.md).

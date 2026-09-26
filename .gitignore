@@ -31,3 +31,7 @@ CMakeFiles/
 .env.*
 !.env.example
 .DS_Store
+/docs/
+/research/
+/results/
+docs/design-reference.md

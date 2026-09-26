@@ -164,6 +164,7 @@ data/raw/.gitkeep
 docs/architecture.md
 docs/artifact-format.md
 docs/cli.md
+docs/design-reference.md
 docs/exactness.md
 docs/extending.md
 docs/getting-started.md
