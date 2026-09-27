@@ -1,2 +1,0 @@
-# Placeholder: named provider, protocol (chat_completions or responses), base_url, model, api_key_env, timeout, capabilities.
-# Generation and embedding providers are configured independently. No secrets here.

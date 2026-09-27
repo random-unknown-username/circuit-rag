@@ -31,6 +31,7 @@ CMakeFiles/
 .env.*
 !.env.example
 .DS_Store
+.agents/
 /docs/
 /research/
 /results/
