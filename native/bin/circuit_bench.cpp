@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
     cudaMallocHost(&h_ids, k * sizeof(int));
     for (int d = 0; d < dim; ++d) h_query[d] = 0.05f;
 
-    circuit_trace_t trace
+    circuit_trace_t trace;
 
     // warmup 
     std::cout << "[C++] Executing 50 warmup queries on GPU..." << std::endl;
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     latencies_us.reserve(num_queries);
 
     // randomize query slightly per run to prevevnt cache hits
-    td::mt19937 rng(42);
+    std::mt19937 rng(42);
     std::normal_distribution<float> dist(0.0f, 1.0f);
 
     auto total_bench_start = std::chrono::high_resolution_clock::now();

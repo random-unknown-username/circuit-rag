@@ -1,20 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
 project(circuit_rag LANGUAGES C CXX CUDA)
 
-find_package(CUDATooklkit REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-set(CMADE_CUDA_ARCHITECTURES "120")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --use_fast_math -Xcompiler -fPIC)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -o3 -fPIC")
+set(CMAKE_CUDA_ARCHITECTURES "120")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3 --use_fast_math -Xcompiler -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fPIC")
 
-include_directories{
+include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-}
+)
 
 set(CIRCUIT_SOURCES
     src/gpu_index.cpp
@@ -31,7 +31,7 @@ set(CIRCUIT_SOURCES
 add_library(circuit SHARED ${CIRCUIT_SOURCES})
 set_target_properties(circuit PROPERTIES
         CUDA_SEPARABLE_COMPILATION OFF
-        POSITION_INDEPENDNT_CODE ON
+        POSITION_INDEPENDENT_CODE ON
 )
 target_link_libraries(circuit PRIVATE CUDA::cudart CUDA::cublas)
 

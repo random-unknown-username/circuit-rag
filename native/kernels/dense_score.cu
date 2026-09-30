@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include "../include/numerics.cuh"
+#include "../include/circuit/numerics.cuh"
 
 namespace circuit {
 
@@ -14,21 +14,20 @@ __global__ void score_surviving_leaves_fast_kernel(
     const int* __restrict__ child_survivor_indices,// [num_surviving_children]
     const int num_surviving_children,
     const int dim,
-    float* __restrict__ vector_scores,            // [N]
-    int* __restrict__ scored_vector_ids,          // [N]
-    int* __restrict__ total_vectors_scored        // [1]
+    float* __restrict__ vector_scores             // [N]
 ) {
+    // Dynamic shared memory for caching the query vector [D]
     extern __shared__ float4 s_query[];
     int dim4 = dim / 4;
 
-    // Load query into shared memory once per block
+    // Load query vector into shared memory collectively across the block
     const float4* __restrict__ query4 = reinterpret_cast<const float4*>(query);
     for (int d = threadIdx.x; d < dim4; d += blockDim.x) {
         s_query[d] = query4[d];
     }
     __syncthreads();
 
-    // Dynamic work distribution across surviving children
+    // 2D grid: blockIdx.y selects the surviving child cluster, blockIdx.x handles parallel chunks of vectors inside the cluster
     for (int s_idx = blockIdx.y; s_idx < num_surviving_children; s_idx += gridDim.y) {
         int child_idx = child_survivor_indices[s_idx];
         int offset = leaf_offsets[child_idx];
@@ -45,7 +44,7 @@ __global__ void score_surviving_leaves_fast_kernel(
                 sum += v.x * q.x + v.y * q.y + v.z * q.z + v.w * q.w;
             }
 
-            // Remainder if dim not divisible by 4
+            // Remainder loop
             for (int d = dim4 * 4 + threadIdx.x; d < dim; d += blockDim.x) {
                 sum += (leaf_vectors + (size_t)v_idx * dim)[d] * query[d];
             }
@@ -54,8 +53,6 @@ __global__ void score_surviving_leaves_fast_kernel(
 
             if (threadIdx.x == 0) {
                 vector_scores[v_idx] = sum;
-                int pos = atomicAdd(total_vectors_scored, 1);
-                scored_vector_ids[pos] = v_idx;
             }
         }
     }
@@ -64,7 +61,7 @@ __global__ void score_surviving_leaves_fast_kernel(
 // zero sync leaf scoring kernel
 // directly uses child_survivor_mask so it can be launched on stream without cpu sync
 // elimainates atmoic counter bottlenecks
-__global__ void score_surviving_leaves_device_count_kernel(
+__global__ void score_surviving_leaves_direct_kernel(
     const float* __restrict__  query,              // [D]
     const float* __restrict__ leaf_vectors,       // [N, D]
     const int* __restrict__ leaf_offsets,         // [num_total_children]
@@ -83,7 +80,7 @@ __global__ void score_surviving_leaves_device_count_kernel(
     }
     __syncthreads();
 
-    for (int child_idx = blockIdx.x; child_idx < num_total_children; child_idx += gridDim.y) {
+    for (int child_idx = blockIdx.y; child_idx < num_total_children; child_idx += gridDim.y) {
         if (child_survivor_mask[child_idx] == 0) continue;
 
         int offset = leaf_offsets[child_idx];
@@ -91,11 +88,11 @@ __global__ void score_surviving_leaves_device_count_kernel(
 
         for (int i = blockIdx.x; i < count; i += gridDim.x) {
             int v_idx = offset + i;
-            const float4* __restrict__ vec4 = reinterpret_cast<const float4*>(leaf_vectors + (size_t)v_inx * dim);
+            const float4* __restrict__ vec4 = reinterpret_cast<const float4*>(leaf_vectors + (size_t)v_idx * dim);
 
             float sum = 0.0f;
-            for (int d = threadIdx.x; d < dim4; d += blockDum.x) {
-                float4 d = vec4[d];
+            for (int d = threadIdx.x; d < dim4; d += blockDim.x) {
+                float4 v = vec4[d];
                 float4 q = s_query[d];
                 sum += v.x * q.x + v.y * q.y + v.z * q.z + v.w * q.w;
             }
@@ -121,8 +118,8 @@ __global__ void score_surviving_leaves_device_count_kernel(
     const float* __restrict__ leaf_vectors,       // [N, D]
     const int* __restrict__ leaf_offsets,         // [num_total_children]
     const int* __restrict__ leaf_sizes,           // [num_total_children]
-    const int* __restrict__ child_survivor_indices,// [num_surviving_children]
-    const int num_surviving_children,
+    const int* __restrict__ child_survivor_indices,// [num_total_children]
+    const int* __restrict__ num_child_survivors_ptr, // [1] in device memory
     const int dim,
     float* __restrict__ vector_scores             // [N]
 ) {
@@ -188,7 +185,7 @@ __global__ void flat_exact_score_fast_kernel(
     int total_warps = (gridDim.x * blockDim.x) / 32;
 
     for (int v = warp_id; v < N; v += total_warps) {
-        const float4* v4 = reinterpret_cast<const float4*>(corpus + (size_t)v ** dim);
+        const float4* v4 = reinterpret_cast<const float4*>(corpus + (size_t)v * dim);
         float sum = 0.0f;
         #pragma unroll
         for (int d = lane; d < dim4; d += 32) {

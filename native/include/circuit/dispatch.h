@@ -24,14 +24,15 @@ void launch_parent_projection(
     float query_norm_sq,
     const float* bases,
     const int* survivor_indices,
+    int num_surviving_roots,
     int dim,
     int rank,
     float* projected_queries,
-    float* prep_norms,
+    float* perp_norms,
     cudaStream_t stream = 0 
 );
 
-void launch_evalute_child_bounds(
+void launch_evaluate_child_bounds(
     const float* projected_queries,
     const float* perp_norms,
     const float* root_dot_products,
@@ -58,8 +59,6 @@ void launch_score_surviving_leaves(
     int num_surviving_children,
     int dim,
     float* vector_scores,
-    int* scored_vector_ids,
-    int* total_vectors_scored,
     cudaStream_t stream = 0
 );
 
@@ -72,7 +71,7 @@ void launch_parent_projection_direct(
     int dim,
     int rank,
     float* projected_queries,
-    float* prep_norms,
+    float* perp_norms,
     cudaStream_t stream = 0
 );
 
@@ -82,13 +81,13 @@ void launch_score_surviving_leaves_direct(
     const int* leaf_offsets,
     const int* leaf_sizes,
     const int* child_survivor_mask,
-    int num_surviving_children,
+    int num_total_children,
     int dim,
     float* vector_scores,
     cudaStream_t stream = 0
 );
 
-void launch_hierarchial_search(
+void launch_hierarchical_search(
     const float* query,
     const float* root_centers,
     const float* root_radii,
@@ -112,7 +111,7 @@ void launch_hierarchial_search(
     int* num_survivors,
     float* root_dot_products,
     float* projected_queries,
-    float* prep_norms,
+    float* perp_norms,
     int* child_survivor_mask,
     int* child_survivor_indices,
     int* num_child_survivors,

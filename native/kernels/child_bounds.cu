@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include "../include/numerics.cuh"
+#include "../include/circuit/numerics.cuh"
 
 namespace circuit {
 
@@ -42,9 +42,9 @@ __global__ void evaluate_child_bounds_kernel(
 
     // fast path rank = 8 (2 128bit float3 loads/interval)
     if (rank == 8) { 
-        const float4 __restrict__ l4 = reinterpret_cast<const float4*>(child_intervals_l + (size_t)child_idx * 8);
-        const float4 __restrict__ u4 = reinterpret_cast<const float4*>(child_intervals_u + (size_t)child_idx * 8);
-        const float4 __restrict__ q4 = reinterpret_cast<const float4*>(q_P);
+        const float4* __restrict__ l4 = reinterpret_cast<const float4*>(child_intervals_l + (size_t)child_idx * 8);
+        const float4* __restrict__ u4 = reinterpret_cast<const float4*>(child_intervals_u + (size_t)child_idx * 8);
+        const float4* __restrict__ q4 = reinterpret_cast<const float4*>(q_P);
 
         float4 l0 = l4[0];
         float4 l1 = l4[1];

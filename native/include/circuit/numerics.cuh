@@ -15,7 +15,7 @@ namespace circuit {
         return val;
     }
 
-    __device__ __force_inline__ float blockReduceSum(float val) {
+    __device__ __forceinline__ float blockReduceSum(float val) {
         static __shared__ float shared[32]; // shared mem for 32 partial sums
         int lane = threadIdx.x % 32;
         int wid = threadIdx.x / 32;

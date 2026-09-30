@@ -11,7 +11,7 @@ constexpr int BLOCK_THREADS = 128;
 static __device__ float g_stage1_scores[NUM_BLOCKS * MAX_K];
 static __device__ int g_stage1_ids[NUM_BLOCKS * MAX_K];
 
-__device__ inline void insert_sorted(float* vals, int* idxs, int k, float v, int id) {
+__device__ inline void insert_sorted(float* vals, int* idxs, int K, float v, int id) {
     int pos = K - 1;
     while (pos > 0 && vals[pos - 1] < v) {
         vals[pos] = vals[pos - 1];
@@ -165,7 +165,7 @@ void launch_select_topk(
         scores, original_ids, N, K
     );
     select_topk_stage2_kernel<<<1, 32, 0, stream>>>(
-        k, out_scores, out_ids
+        K, out_scores, out_ids
     );
 }
 

@@ -1,6 +1,6 @@
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include "../include/numerics.cuh"
+#include "../include/circuit/numerics.cuh"
 
 namespace circuit {
 
@@ -25,7 +25,7 @@ __global__ void evaluate_root_bounds_kernel(
     if (root_idx >= num_roots) return;
 
     const float4* __restrict__ q4 = reinterpret_cast<const float4*>(query);
-    const float4* __restrict__ r4 = reinterpret_cast<const float4*>(root_centers * (size-t)root_idx * dim);
+    const float4* __restrict__ c4 = reinterpret_cast<const float4*>(root_centers + (size_t)root_idx * dim);
     int dim4 = dim / 4;
 
     float sum = 0.0f;
@@ -45,12 +45,12 @@ __global__ void evaluate_root_bounds_kernel(
     if (threadIdx.x == 0) {
         root_dot_products[root_idx] = sum;
         float bound = sum + query_norm * root_radii[root_idx];
-        of (bound >= threshold) {
-            survivor_mask[root_idx] = 1;
-            int pos = atmoicAdd(num_survivors, 1);
+        if (bound >= threshold) {
+            survivors_mask[root_idx] = 1;
+            int pos = atomicAdd(num_survivors, 1);
             survivors_indices[pos] = root_idx;
         } else {
-            survivor_mask[root_idx] = 0;
+            survivors_mask[root_idx] = 0;
         }
     }
 }

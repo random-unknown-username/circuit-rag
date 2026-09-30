@@ -16,11 +16,11 @@ static int extract_json_int(const std::string& json, const std::string& key) {
     if (pos == std::string::npos) return 0;
     pos += pattern.length();
     while (pos < json.length() && (json[pos] == ' ' || json[pos] == '\t')) pos++;
-    return std:stoi(json.substr(pos));
+    return std::stoi(json.substr(pos));
 }
 
 static void extract_tensor_meta(const std::string& json, const std::string& name, size_t& offset, size_t& nbytes) {
-    sdt::string key = "\"" + name + "\":";
+    std::string key = "\"" + name + "\":";
     size_t pos = json.find(key);
     if (pos == std::string::npos) {
         offset = 0;
@@ -28,22 +28,22 @@ static void extract_tensor_meta(const std::string& json, const std::string& name
         return;
     }
     size_t block_end = json.find("}", pos);
-    std::string block = json.substr(pos, block_ned - pos + 1);
+    std::string block = json.substr(pos, block_end - pos + 1);
 
     std::string off_key = "\"offset\":";
     size_t off_pos = block.find(off_key);
-    if (off_pos == std::string::npos) {
+    if (off_pos != std::string::npos) {
         off_pos += off_key.length();
         while (off_pos < block.length() && (block[off_pos] == ' ' || block[off_pos] == '\t')) off_pos++;
-        offset = std:stoull(block.substr(off_pos));
+        offset = std::stoull(block.substr(off_pos));
     }
 
-    std:string nb_key = "\"nbytes\":";
+    std::string nb_key = "\"nbytes\":";
     size_t nb_pos = block.find(nb_key);
-    if (nb_pos == std::string::npos) {
+    if (nb_pos != std::string::npos) {
         nb_pos += nb_key.length();
         while (nb_pos < block.length() && (block[nb_pos] == ' ' || block[nb_pos] == '\t')) nb_pos++;
-        nbytes = std:stoull(block.substr(nb_pos));
+        nbytes = std::stoull(block.substr(nb_pos));
     }
 }
 
@@ -56,7 +56,7 @@ bool circuit_index_opaque::load(const char* filepath, int device_id) {
         return false;
     }
 
-    struct start sb;
+    struct stat sb;
     if (fstat(fd, &sb) < 0) {
         close(fd);
         return false;
@@ -77,13 +77,13 @@ bool circuit_index_opaque::load(const char* filepath, int device_id) {
         return false;
     }
 
-    uint32_t header_len = *reinterpret_cast<const uint32_t*>(ptr + 8)
-    std::strnig json_header(ptr + 12, header_len);
+    uint32_t header_len = *reinterpret_cast<const uint32_t*>(ptr + 8);
+    std::string json_header(ptr + 12, header_len);
 
     dim = extract_json_int(json_header, "dim");
     rank = extract_json_int(json_header, "rank");
     num_roots = extract_json_int(json_header, "num_roots");
-    num_total_childern = extract_json_int(json_header, "num_total_children");
+    num_total_children = extract_json_int(json_header, "num_total_children");
     N = extract_json_int(json_header, "N");
 
     if (dim <= 0 || num_roots <= 0 || num_total_children <= 0 || N <= 0) {
@@ -94,6 +94,16 @@ bool circuit_index_opaque::load(const char* filepath, int device_id) {
     cudaStreamCreate(&stream);
     cublasCreate(&cublas_handle);
     cublasSetStream(cublas_handle, stream);
+
+    auto upload_tensor = [&](const std::string& name, void** dev_ptr) -> size_t {
+        size_t off = 0, nb = 0;
+        extract_tensor_meta(json_header, name, off, nb);
+        if (nb > 0 && off > 0) {
+            cudaMalloc(dev_ptr, nb);
+            cudaMemcpyAsync(*dev_ptr, ptr + off, nb, cudaMemcpyHostToDevice, stream);
+        }
+        return nb;
+    };
 
     upload_tensor("root_centers", (void**)&dev_root_centers);
     upload_tensor("root_radii", (void**)&dev_root_radii);
@@ -124,7 +134,7 @@ bool circuit_index_opaque::load(const char* filepath, int device_id) {
     cudaMalloc(&dev_top_scores, 32 * sizeof(float));
     cudaMalloc(&dev_top_ids, 32 * sizeof(int));
 
-    cudaStereamSynchronize(stream);
+    cudaStreamSynchronize(stream);
 
     warmup_cuda_graph(10);
     return true;
@@ -137,7 +147,7 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
     const float beta = 0.0f;
 
     // warmup graph capture
-    for (int iter = 0, iter < 3; ++iter) {
+    for (int iter = 0; iter < 3; ++iter) {
         if (N <= 10000) {
             circuit::launch_flat_exact_score(
                 dev_query,
@@ -148,9 +158,9 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
                 stream
             );
         } else {
-            cudaMemsetAsync(ws_vector_scores, 0, sizeof(int), stream);
-            cudaMemsetAsync(ws_num_chuild_survivors, 0, sizeof(int), stream);
-            circuit::launch_hierarchial_search(
+            cudaMemsetAsync(ws_num_survivors, 0, sizeof(int), stream);
+            cudaMemsetAsync(ws_num_child_survivors, 0, sizeof(int), stream);
+            circuit::launch_hierarchical_search(
                 dev_query,
                 dev_root_centers,
                 dev_root_radii,
@@ -159,15 +169,15 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
                 dev_child_intervals_u,
                 dev_child_radii,
                 dev_child_parent_ids,
+                dev_leaf_vectors,
                 dev_leaf_offsets,
                 dev_leaf_sizes,
                 num_roots,
                 num_total_children,
-                N,
                 dim,
                 rank,
                 1.0f,
-                1.9f,
+                1.0f,
                 -1e9f,
                 ws_survivor_mask,
                 ws_survivor_indices,
@@ -184,14 +194,14 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
         }
 
         circuit::launch_select_topk(
-            ws_vector_scores, dev_original_ids, N, K,
+            ws_vector_scores, dev_original_ids, N, k,
             dev_top_scores, dev_top_ids, stream
         );
     }
 
     cudaStreamSynchronize(stream);
     
-    cudaBeginCapture(stream, cudaStreamCaptureModeGlobal);
+    cudaStreamBeginCapture(stream, cudaStreamCaptureModeGlobal);
 
     if (N <= 10000) {
         circuit::launch_flat_exact_score(
@@ -205,7 +215,7 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
     } else {
         cudaMemsetAsync(ws_num_survivors, 0, sizeof(int), stream);
         cudaMemsetAsync(ws_num_child_survivors, 0, sizeof(int), stream);
-        circuit::launch_hierarchial_search(
+        circuit::launch_hierarchical_search(
             dev_query, dev_root_centers, dev_root_radii, dev_bases,
             dev_child_intervals_l, dev_child_intervals_u, dev_child_radii, dev_child_parent_ids,
             dev_leaf_vectors, dev_leaf_offsets, dev_leaf_sizes,
@@ -223,7 +233,7 @@ void circuit_index_opaque::warmup_cuda_graph(int k) {
         dev_top_scores, dev_top_ids, stream
     );
 
-    cudaError_t err_cap = cudaStreamEndCapture(stream, &cuda_graph);
+    cudaError_t err_cap = cudaStreamEndCapture(stream, &graph);
     cudaError_t err_inst = cudaGraphInstantiate(&graph_exec, graph, nullptr, nullptr, 0);
     std::cout << "Circuit RAG: graph warmup reached EndCapture: " << cudaGetErrorString(err_cap) << " | Instantiate: " << cudaGetErrorString(err_inst) << std::endl;
     graph_warmed_up = (err_cap == cudaSuccess && err_inst == cudaSuccess);
@@ -259,9 +269,9 @@ int circuit_index_opaque::search(const float* query, int k, float* out_scores, i
                 dev_query, dev_leaf_vectors, N, dim, ws_vector_scores, stream
             );
         } else {
-            cudaStreamMemsetAsync(ws_num_survivors, 0, sizeof(int), stream);
-            cudaStreamMemsetAsync(ws_num_child_survivors, 0, sizeof(int), stream);
-            circuit::launch_hierarchial_search(
+            cudaMemsetAsync(ws_num_survivors, 0, sizeof(int), stream);
+            cudaMemsetAsync(ws_num_child_survivors, 0, sizeof(int), stream);
+            circuit::launch_hierarchical_search(
                 dev_query, dev_root_centers, dev_root_radii, dev_bases,
                 dev_child_intervals_l, dev_child_intervals_u, dev_child_radii, dev_child_parent_ids,
                 dev_leaf_vectors, dev_leaf_offsets, dev_leaf_sizes,
@@ -276,11 +286,11 @@ int circuit_index_opaque::search(const float* query, int k, float* out_scores, i
 
         circuit::launch_select_topk(
             ws_vector_scores, dev_original_ids, N, k,
-            dev_top_scores, dev_tops_ids, stream
+            dev_top_scores, dev_top_ids, stream
         );
     }
 
-    cudaEventRecord(ev_end, stream)
+    cudaEventRecord(ev_end, stream);
     auto t2 = std::chrono::high_resolution_clock::now();
 
     // copy topk results to host
@@ -292,11 +302,11 @@ int circuit_index_opaque::search(const float* query, int k, float* out_scores, i
     cudaStreamSynchronize(stream);
     auto t4 = std::chrono::high_resolution_clock::now();
 
-    float gpu_us = 0.0f;
-    cudaEventElapsedTime(&gpu_us, ev_start, ev_end);
+    float gpu_ms = 0.0f;
+    cudaEventElapsedTime(&gpu_ms, ev_start, ev_end);
     double gpu_us = gpu_ms * 1000.0;
 
-    double elapsed_us = std:chrono::duration<double, std:micro>(t4  - t0).count();
+    double elapsed_us = std::chrono::duration<double, std::micro>(t4 - t0).count();
     double h2d_us = std::chrono::duration<double, std::micro>(t1 - t0).count();
     double launch_us = std::chrono::duration<double, std::micro>(t2 - t1).count();
     double d2h_us = std::chrono::duration<double, std::micro>(t3 - t2).count();
@@ -312,7 +322,7 @@ int circuit_index_opaque::search(const float* query, int k, float* out_scores, i
     }
 
     if (trace) {
-        trace->latency_us = elapsed_us;
+        trace->latency_us = static_cast<float>(elapsed_us);
         trace->vectors_scored = N;
     }
 

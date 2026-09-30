@@ -31,22 +31,6 @@ __global__ void parent_projection_kernel(
     float* __restrict__ perp_norms
 );
 
-__global__ void evalute_child_bounds_kernel(
-    const float* __restrict__ projected_queries,
-    const float* __restrict__ perp_norms,
-    const float* __restrict__ root_dot_products,
-    const float* __restrict__ child_intervals_l,
-    const float* __restrict__ child_intervals_u,
-    const float* __restrict__ child_radii,
-    const int* __restrict__ child_parent_ids,
-    const int* __restrict__ root_survivor_mask,
-    const float threshold,
-    const int num_total_children,
-    const int rank,
-    int* __restrict__ child_survivor_mask,
-    int* __restrict__ child_survivor_indices,
-    int* __restrict__ num_child_survivors
-);
 
 __global__ void evaluate_child_bounds_kernel(
     const float* __restrict__ projected_queries,
@@ -97,9 +81,7 @@ __global__ void score_surviving_leaves_fast_kernel(
     const int* __restrict__ child_survivor_indices,
     const int num_surviving_children,
     const int dim,
-    float* __restrict__ vector_scores,
-    int* __restrict__ scored_vector_ids,
-    int* __restrict__ total_vectors_scored
+    float* __restrict__ vector_scores
 );
 
 __global__ void score_surviving_leaves_direct_kernel(
@@ -124,7 +106,7 @@ __global__ void score_surviving_leaves_device_count_kernel(
     float* __restrict__ vector_scores
 );
 
-void launch_evalute_root_bounds(
+void launch_evaluate_root_bounds(
     const float* query,
     const float* root_centers,
     const float* root_radii,
@@ -203,8 +185,6 @@ void launch_score_surviving_leaves(
     int num_surviving_children,
     int dim,
     float* vector_scores,
-    int* scored_vector_ids,
-    int* total_vectors_scored,
     cudaStream_t stream
 ) {
     if (num_surviving_children <= 0) return;
@@ -214,7 +194,7 @@ void launch_score_surviving_leaves(
     score_surviving_leaves_fast_kernel<<<grid, threads, smem, stream>>>(
         query, leaf_vectors, leaf_offsets, leaf_sizes,
         child_survivor_indices, num_surviving_children, dim,
-        vector_scores, scored_vector_ids, total_vectors_scored
+        vector_scores
     );
 }
 
@@ -261,7 +241,7 @@ void launch_score_surviving_leaves_direct(
     );
 }
 
-void launch_hierarchcial_search(
+void launch_hierarchical_search(
     const float* query,
     const float* root_centers,
     const float* root_radii,
@@ -332,7 +312,7 @@ __global__ void flat_exact_score_fast_kernel(
     const float* __restrict__ corpus,
     int N,
     int dim,
-    float* __restrict__ scores,
+    float* __restrict__ scores
 );
 
 void launch_flat_exact_score(
@@ -346,7 +326,7 @@ void launch_flat_exact_score(
     int threads = 256;
     int blocks = 64;
     size_t smem = (dim/4)*sizeof(float4);
-    flat_exact_score_fast_kernel<<blocks, threads, smem, stream>>>(
+    flat_exact_score_fast_kernel<<<blocks, threads, smem, stream>>>(
         query, corpus, N, dim, scores
     );
 }
