@@ -4,26 +4,54 @@ exact top-k vector search on the gpu. clusters get skipped only when a geometric
 
 ## fast try (reviewers start here)
 
+needs an nvidia gpu, cuda toolkit (`nvcc`) and pytorch w cuda. no clone needed.
+
+**1. install** (compiles the cuda part on your machine, ~1 min)
+
 ```bash
-pip install -e . --no-build-isolation   # 1. build (~1 min, needs nvcc + torch w cuda)
-python tests/test_exact.py              # 2. ~5s, prints exact: 25/25 queries match brute force
-python examples/real_proof.py           # 3. ~1 min, real scifact text, downloads its own data
+pip install circuit-rag --no-build-isolation
+```
+
+**2. save this as `try.py` and run it**
+
+```python
+from circuit_rag import CircuitRAG
+
+rag = CircuitRAG()   # downloads bge-small-en-v1.5 the first time
+rag.add_documents([
+    "mRNA vaccines make your cells build a harmless antigen protein, which trains the immune system.",
+    "CRISPR-Cas9 edits dna at a precise spot.",
+    "Photosynthesis turns light into chemical energy inside chloroplasts.",
+    "General relativity says gravity is curved spacetime.",
+    "Mitochondria make atp through oxidative phosphorylation.",
+])
+
+for r in rag.search("how do mrna vaccines work?", k=3):
+    print(f"{r.score:.3f}  {r.text}")
+```
+
+```
+0.841  mRNA vaccines make your cells build a harmless antigen protein, which trains the immune system.
+0.628  CRISPR-Cas9 edits dna at a precise spot.
+0.554  Mitochondria make atp through oxidative phosphorylation.
+```
+
+top hit is the mrna doc, thats it working. want your own text? just swap the list.
+
+## prove its exact
+
+the results arent approximate, every result is checked against brute force. to run the checks clone the repo:
+
+```bash
+git clone https://github.com/random-unknown-username/circuit-rag && cd circuit-rag
+pip install -e . --no-build-isolation
+python tests/test_exact.py              # ~5s, prints exact: 25/25 queries match brute force
+python examples/real_proof.py           # ~1 min, real scifact text, downloads its own data
 ```
 
 ![output of tests/test_exact.py and examples/real_proof.py on my rtx 5050 laptop](https://raw.githubusercontent.com/random-unknown-username/circuit-rag/main/assets/proof.png)
 
-pass = step 2 prints `exact: 25/25 ...` and step 3 prints `300/300`.
-
-## try it (details)
-
-needs an nvidia gpu, cuda toolkit (`nvcc`) and pytorch w cuda.
-
-```bash
-git clone <this repo> && cd circuit-rag
-pip install -e . --no-build-isolation   # compiles the cuda ext, ~1 min
-python tests/test_exact.py              # circuit == brute force
-python examples/real_proof.py           # real scifact text, downloads its own data
-```
+pass = `exact: 25/25 ...` and `300/300`.
 
 `real_proof.py` pulls scifact from the public beir server, embeds it w `BAAI/bge-small-en-v1.5`, runs 300 labelled queries and checks every result against brute force. nothing precomputed. on my rtx 5050 laptop:
 
