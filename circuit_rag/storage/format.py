@@ -6,7 +6,7 @@ from typing import Optional, Union, Dict, Any
 import numpy as np
 import torch
 
-from circuit_rag.hierarchy_rag.build import CircuitIndex
+from circuit_rag.hierarchy.build import CircuitIndex
 
 MAGIC_HEADER = b"CIRCUIT1" # 8bytes 1 stands for v1
 
@@ -54,30 +54,30 @@ def save_circuit_index(index: CircuitIndex, filepath: str) -> int:
         }
         current_offset += (nbytes + 63) & ~63  # 64-byte alignment
 
-        header_bytes = json.dumps(meta).encode("utf-8")
-        actual_header_len = len(header_bytes)
-        assert actual_header_len <= padded_header_len, "Header too large to fit in 8KB"
+    header_bytes = json.dumps(meta).encode("utf-8")
+    actual_header_len = len(header_bytes)
+    assert actual_header_len <= padded_header_len, "Header too large to fit in 8KB"
 
-        # Write file
-        os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-        with open(filepath, "wb") as f:
-            f.write(MAGIC_HEADER)
-            f.write(struct.pack("<I", padded_header_len))
-            f.write(header_bytes)
-            # pad to data_start
-            pad_size = data_start - f.tell()
-            if pad_size > 0:
-                f.write(b"\x00" * pad_size)
+    # Write file
+    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+    with open(filepath, "wb") as f:
+        f.write(MAGIC_HEADER)
+        f.write(struct.pack("<I", padded_header_len))
+        f.write(header_bytes)
+        # pad to data_start
+        pad_size = data_start - f.tell()
+        if pad_size > 0:
+            f.write(b"\x00" * pad_size)
 
-            for name in tensors:
-                arr, _ = tensors[name]
-                f.write(arr.tobytes())
-                align_pad = ((arr.nbytes + 63) & ~63) - arr.nbytes
-                if align_pad > 0:
-                    f.write(b"\x00" * align_pad)
+        for name in tensors:
+            arr, _ = tensors[name]
+            f.write(arr.tobytes())
+            align_pad = ((arr.nbytes + 63) & ~63) - arr.nbytes
+            if align_pad > 0:
+                f.write(b"\x00" * align_pad)
 
-        total_bytes = current_offset
-        return total_bytes
+    total_bytes = current_offset
+    return total_bytes
 
 def load_circuit_index(filepath: str, device: str = "cuda", use_mmap: bool = True) -> CircuitIndex:
     """
@@ -89,7 +89,7 @@ def load_circuit_index(filepath: str, device: str = "cuda", use_mmap: bool = Tru
 
     with open(filepath, "rb") as f:
         magic = f.read(8)
-        if magice != MAGIC_HEADER:
+        if magic != MAGIC_HEADER:
             raise ValueError(f"File {filepath} is not a valid CircuitIndex file.")
         header_len = struct.unpack("<I", f.read(4))[0]
         header_bytes = f.read(header_len)
@@ -99,7 +99,7 @@ def load_circuit_index(filepath: str, device: str = "cuda", use_mmap: bool = Tru
 
         if use_mmap:
             with open(filepath, "rb") as f:
-                mm = mmap.mmap(f.fineno(), 0, access=mmap.ACCESS_READ)
+                mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
                 for name, t_info in meta["tensor_meta"].items():
                     offset = t_info["offset"]
                     nbytes = t_info["nbytes"]
@@ -118,7 +118,7 @@ def load_circuit_index(filepath: str, device: str = "cuda", use_mmap: bool = Tru
                     f.seek(t_info["offset"])
                     data = f.read(t_info["nbytes"])
                     dtype = np.dtype(t_info["dtype"])
-                    arr = np.frombuffer(data, dtype=type).reshape(t_info["shape"])
+                    arr = np.frombuffer(data, dtype=dtype).reshape(t_info["shape"])
                     t = torch.from_numpy(arr.copy())
                     if device == "cuda" and torch.cuda.is_available():
                         t = t.cuda()
@@ -127,7 +127,7 @@ def load_circuit_index(filepath: str, device: str = "cuda", use_mmap: bool = Tru
     idx = CircuitIndex(
         root_centers=tensor["root_centers"],
         root_radii=tensor["root_radii"],
-        bases=tensors["bases"],
+        bases=tensor["bases"],
         child_intervals_l=tensor["child_intervals_l"],
         child_intervals_u=tensor["child_intervals_u"],
         child_radii=tensor["child_radii"],

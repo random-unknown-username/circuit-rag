@@ -263,6 +263,8 @@ def build_circuit_index(X: np.ndarray, num_roots: int = 128, children_per_root: 
     - Leaf-contiguous vector layout
     Automatically uses GPU-accelerated tensor construction if CUDA is available.
     """
+    if rank > 32:
+        raise ValueError("rank > 32 crashes the kernel launch rn, use rank <= 32")
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
