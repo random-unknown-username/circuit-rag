@@ -2,7 +2,7 @@
 
 exact top-k vector search on the gpu. clusters get skipped only when a geometric bound proves none of their vectors can beat the current kth best score, so the results are identical to brute force, not approximate.
 
-## fast try (reviewers start here)
+## fast try 
 
 needs an nvidia gpu, cuda toolkit (`nvcc`) and pytorch w cuda. no clone needed.
 
