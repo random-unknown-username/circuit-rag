@@ -8,9 +8,20 @@ version = "0.1.0"
 description = "Exact, certified GPU vector search for RAG"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [{ name = "Satvik Hardat", email = "satvikhardat@gmail.com" }]
+keywords = ["rag", "vector-search", "cuda", "retrieval"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: C++",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Operating System :: POSIX :: Linux",
+]
 dependencies = [
     "torch>=2.0.0",
     "numpy>=1.24.0",
     "scikit-learn>=1.2.0",
     "sentence-transformers>=2.2.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/random-unknown-username/circuit-rag"

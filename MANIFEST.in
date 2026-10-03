@@ -1,0 +1,5 @@
+include README.md THIRD_PARTY_NOTICES.md
+recursive-include native *.cpp *.cu *.cuh *.h *.hpp CMakeLists.txt
+recursive-include tests *.py
+recursive-include examples *.py
+recursive-include assets *.png

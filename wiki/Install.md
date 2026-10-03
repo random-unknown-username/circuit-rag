@@ -28,7 +28,7 @@ TORCH_CUDA_ARCH_LIST="8.6" pip install -e . --no-build-isolation
 ## check it worked
 
 ```bash
-python -c "import circuit_cuda"      # should print nothing
+python -c "import torch, circuit_cuda"      # should print nothing
 python tests/test_exact.py           # exact: 25/25 queries match brute force
 ```
 
@@ -43,6 +43,6 @@ gives u `build/libcircuit.so` and `build/circuit_bench`. see [native bench](Nati
 
 ## if it breaks
 
-- `libc10.so: cannot open shared object file` on `import circuit_cuda`: python is picking up a different torch than the one it was built against. rebuild w the same python env u run in.
+- `libc10.so: cannot open shared object file` on `import circuit_cuda`: import torch first (`import torch, circuit_cuda`), the ext links against torch libs and they only get loaded once torch is imported. `import circuit_rag` already does this for u
 - `nvcc: command not found`: cuda toolkit isnt on PATH (arch: `/opt/cuda/bin`).
 - no gpu: the ext wont build. `circuit_search` itself falls back to a plain cpu matmul if the ext isnt importable, but install needs nvcc.

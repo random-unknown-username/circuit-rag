@@ -10,7 +10,7 @@ python tests/test_exact.py              # 2. ~5s, prints exact: 25/25 queries ma
 python examples/real_proof.py           # 3. ~1 min, real scifact text, downloads its own data
 ```
 
-![output of tests/test_exact.py and examples/real_proof.py on my rtx 5050 laptop](assets/proof.png)
+![output of tests/test_exact.py and examples/real_proof.py on my rtx 5050 laptop](https://raw.githubusercontent.com/random-unknown-username/circuit-rag/main/assets/proof.png)
 
 pass = step 2 prints `exact: 25/25 ...` and step 3 prints `300/300`.
 
@@ -79,7 +79,7 @@ scores are inner products so normalise ur embeddings if u want cosine.
 
 ## wiki
 
-full docs (install, usage, how it works, file format, faq) are in [wiki/](wiki/Home.md).
+full docs (install, usage, how it works, file format, faq) are in [wiki/](https://github.com/random-unknown-username/circuit-rag/blob/main/wiki/Home.md).
 
 ## known limits
 
