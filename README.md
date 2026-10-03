@@ -10,7 +10,7 @@ python tests/test_exact.py              # 2. ~5s, prints exact: 25/25 queries ma
 python examples/real_proof.py           # 3. ~1 min, real scifact text, downloads its own data
 ```
 
-![output of tests/test_exact.py and examples/real_proof.py on my rtx 5050 laptop](docs/proof.png)
+![output of tests/test_exact.py and examples/real_proof.py on my rtx 5050 laptop](assets/proof.png)
 
 pass = step 2 prints `exact: 25/25 ...` and step 3 prints `300/300`.
 
