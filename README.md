@@ -77,6 +77,10 @@ index.save("my.circuit")
 
 scores are inner products so normalise ur embeddings if u want cosine.
 
+## wiki
+
+full docs (install, usage, how it works, file format, faq) are in [wiki/](wiki/Home.md).
+
 ## known limits
 
 - `rank` has to be <= 32 (higher crashes the kernel launch, havent found why yet)
